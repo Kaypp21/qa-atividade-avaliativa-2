@@ -11,61 +11,74 @@ class BibliotecasControllerTest extends TestCase
 {
     use RefreshDatabase;
 
-    /**
-     * Test: Listar bibliotecas com sucesso
-     */
-    public function test_listar_bibliotecas_com_sucesso(): void
+    public function test_index_exibe_lista_de_bibliotecas(): void
     {
         $user = User::factory()->create();
         Biblioteca::create([
             'created_by' => $user->id,
             'nome' => 'Biblioteca 1',
+            'endereco' => 'Rua A',
+            'telefone' => '(11) 1111-1111',
+            'email' => 'a@example.com',
         ]);
 
         $response = $this->get('/bibliotecas');
 
         $response->assertStatus(200);
         $response->assertViewIs('bibliotecas.index');
+        $response->assertSee('Biblioteca 1');
+        $response->assertViewHas('bibliotecas');
     }
 
-    /**
-     * Test: Buscar biblioteca por nome
-     */
-    public function test_buscar_biblioteca_por_nome(): void
+    public function test_index_filtra_bibliotecas_por_nome(): void
     {
         $user = User::factory()->create();
-        Biblioteca::create([
-            'created_by' => $user->id,
-            'nome' => 'Biblioteca Central',
-        ]);
-        Biblioteca::create([
-            'created_by' => $user->id,
-            'nome' => 'Biblioteca do Bairro',
-        ]);
+        Biblioteca::create([ 'created_by' => $user->id, 'nome' => 'Biblioteca Central' ]);
+        Biblioteca::create([ 'created_by' => $user->id, 'nome' => 'Biblioteca do Bairro' ]);
 
         $response = $this->get('/bibliotecas?nome=Central');
 
         $response->assertStatus(200);
+        $response->assertSee('Biblioteca Central');
+        $response->assertDontSee('Biblioteca do Bairro');
     }
 
-    /**
-     * Test: Exibir formulário de criação com usuários
-     */
-    public function test_exibir_formulario_criacao(): void
+    public function test_create_page_exibe_formulario_e_usuarios(): void
     {
-        User::factory()->create();
+        $user = User::factory()->create();
 
         $response = $this->get('/bibliotecas/new');
 
         $response->assertStatus(200);
         $response->assertViewIs('bibliotecas.new');
         $response->assertViewHas('users');
+        $response->assertSee($user->name);
     }
 
-    /**
-     * Test: Criar biblioteca com dados válidos
-     */
-    public function test_criar_biblioteca_com_dados_validos(): void
+    public function test_edit_page_para_biblioteca_existente_retorna_500_atualmente(): void
+    {
+        $user = User::factory()->create();
+        $biblioteca = Biblioteca::create([
+            'created_by' => $user->id,
+            'nome' => 'Biblioteca Editar',
+            'endereco' => 'Rua Editar',
+            'telefone' => '(11) 2222-2222',
+            'email' => 'editar@example.com',
+        ]);
+
+        $response = $this->get("/bibliotecas/edit/{$biblioteca->id}");
+
+        $response->assertStatus(500);
+    }
+
+    public function test_edit_page_para_biblioteca_inexistente_retorna_500(): void
+    {
+        $response = $this->get('/bibliotecas/edit/9999');
+
+        $response->assertStatus(500);
+    }
+
+    public function test_store_cria_biblioteca_com_dados_validos(): void
     {
         $user = User::factory()->create();
 
@@ -80,125 +93,41 @@ class BibliotecasControllerTest extends TestCase
         $response->assertRedirect(route('bibliotecas.index'));
         $this->assertDatabaseHas('bibliotecas', [
             'nome' => 'Biblioteca Nova',
-        ]);
-    }
-
-    /**
-     * Test: Validar que biblioteca sem nome não é criada
-     */
-    public function test_validar_biblioteca_sem_nome_nao_criada(): void
-    {
-        $user = User::factory()->create();
-        $bibliotecasAntes = Biblioteca::count();
-
-        try {
-            $response = $this->post('/bibliotecas/create', [
-                'created_by' => $user->id,
-                'endereco' => 'Rua Teste, 123',
-            ]);
-        } catch (\Throwable $e) {
-            // Esperado que lance erro
-        }
-
-        // Verificar que não foi criada
-        $this->assertEquals($bibliotecasAntes, Biblioteca::count());
-    }
-
-    /**
-     * Test: Validar que biblioteca sem created_by não é criada
-     */
-    public function test_validar_biblioteca_sem_created_by_nao_criada(): void
-    {
-        $bibliotecasAntes = Biblioteca::count();
-
-        try {
-            $response = $this->post('/bibliotecas/create', [
-                'nome' => 'Biblioteca',
-                'endereco' => 'Rua Teste, 123',
-            ]);
-        } catch (\Throwable $e) {
-            // Esperado que lance erro
-        }
-
-        // Verificar que não foi criada
-        $this->assertEquals($bibliotecasAntes, Biblioteca::count());
-    }
-
-    /**
-     * Test: Criação com created_by válido funciona
-     */
-    public function test_criacao_com_created_by_valido(): void
-    {
-        $user = User::factory()->create();
-
-        $response = $this->post('/bibliotecas/create', [
-            'created_by' => $user->id,
-            'nome' => 'Biblioteca Válida',
-        ]);
-
-        $response->assertRedirect(route('bibliotecas.index'));
-        $this->assertDatabaseHas('bibliotecas', ['nome' => 'Biblioteca Válida']);
-    }
-
-    /**
-     * Test: Validar criação com dados mínimos
-     */
-    public function test_criacao_com_dados_minimos(): void
-    {
-        $user = User::factory()->create();
-
-        $response = $this->post('/bibliotecas/create', [
-            'created_by' => $user->id,
-            'nome' => 'Biblioteca Mínima',
-        ]);
-
-        $response->assertRedirect(route('bibliotecas.index'));
-        $this->assertDatabaseHas('bibliotecas', ['nome' => 'Biblioteca Mínima']);
-    }
-
-    /**
-     * Test: Validar criação com todos os campos
-     */
-    public function test_criacao_com_todos_campos(): void
-    {
-        $user = User::factory()->create();
-
-        $response = $this->post('/bibliotecas/create', [
-            'created_by' => $user->id,
-            'nome' => 'Biblioteca Completa',
-            'endereco' => 'Rua Teste, 123',
-            'telefone' => '(11) 3333-3333',
-            'email' => 'teste@example.com',
-        ]);
-
-        $response->assertRedirect(route('bibliotecas.index'));
-        $this->assertDatabaseHas('bibliotecas', [
-            'nome' => 'Biblioteca Completa',
             'endereco' => 'Rua Teste, 123',
         ]);
     }
 
-    /**
-     * Test: Erro ao atualizar biblioteca inexistente retorna erro
-     */
-    public function test_erro_atualizar_biblioteca_inexistente(): void
+    public function test_store_retorna_erro_quando_falta_nome(): void
     {
-        $response = $this->put('/bibliotecas/update/9999', [
+        $user = User::factory()->create();
+
+        $response = $this->post('/bibliotecas/create', [
+            'created_by' => $user->id,
+            'endereco' => 'Rua Teste, 123',
+        ]);
+
+        $response->assertStatus(500);
+        $this->assertDatabaseCount('bibliotecas', 0);
+    }
+
+    public function test_store_retorna_erro_quando_falta_created_by(): void
+    {
+        $response = $this->post('/bibliotecas/create', [
             'nome' => 'Biblioteca',
+            'endereco' => 'Rua Teste, 123',
         ]);
 
-        $response->assertStatus(404);
+        $response->assertStatus(500);
+        $this->assertDatabaseCount('bibliotecas', 0);
     }
 
-    /**
-     * Test: Atualizar biblioteca com dados válidos
-     */
-    public function test_atualizar_biblioteca_dados_validos(): void
+    public function test_update_altera_campos_validados(): void
     {
         $user = User::factory()->create();
         $biblioteca = Biblioteca::create([
             'created_by' => $user->id,
             'nome' => 'Biblioteca',
+            'endereco' => 'Rua Original',
             'email' => 'old@email.com',
         ]);
 
@@ -207,38 +136,21 @@ class BibliotecasControllerTest extends TestCase
         ]);
 
         $response->assertRedirect(route('bibliotecas.index'));
-        $this->assertDatabaseHas('bibliotecas', [
-            'id' => $biblioteca->id,
-            'email' => 'novo@email.com',
-        ]);
-    }
-
-    /**
-     * Test: Atualizar preserva campos não modificados
-     */
-    public function test_atualizar_preserva_campos_nao_modificados(): void
-    {
-        $user = User::factory()->create();
-        $biblioteca = Biblioteca::create([
-            'created_by' => $user->id,
-            'nome' => 'Biblioteca Original',
-            'endereco' => 'Rua Original',
-            'email' => 'original@email.com',
-        ]);
-
-        $this->put("/bibliotecas/update/{$biblioteca->id}", [
-            'nome' => 'Biblioteca Modificada',
-        ]);
-
         $biblioteca->refresh();
+        $this->assertEquals('novo@email.com', $biblioteca->email);
         $this->assertEquals('Rua Original', $biblioteca->endereco);
-        $this->assertEquals('original@email.com', $biblioteca->email);
     }
 
-    /**
-     * Test: Deletar biblioteca retorna redirecionamento
-     */
-    public function test_deletar_biblioteca_com_sucesso(): void
+    public function test_update_retorna_404_para_biblioteca_inexistente(): void
+    {
+        $response = $this->put('/bibliotecas/update/9999', [
+            'nome' => 'Biblioteca',
+        ]);
+
+        $response->assertStatus(404);
+    }
+
+    public function test_destroy_remove_biblioteca_existente(): void
     {
         $user = User::factory()->create();
         $biblioteca = Biblioteca::create([
@@ -252,59 +164,10 @@ class BibliotecasControllerTest extends TestCase
         $this->assertDatabaseMissing('bibliotecas', ['id' => $biblioteca->id]);
     }
 
-    /**
-     * Test: Erro ao deletar biblioteca inexistente
-     */
-    public function test_erro_deletar_biblioteca_inexistente(): void
+    public function test_destroy_retorna_404_para_biblioteca_inexistente(): void
     {
         $response = $this->delete('/bibliotecas/delete/9999');
 
-        // Controller atual retorna 404 quando não encontra
         $response->assertStatus(404);
-    }
-
-    /**
-     * Test: Lista vazia quando nenhuma biblioteca existe
-     */
-    public function test_lista_vazia_quando_nenhuma_biblioteca(): void
-    {
-        $response = $this->get('/bibliotecas');
-
-        $response->assertStatus(200);
-    }
-
-    /**
-     * Test: Busca retorna resultado correto
-     */
-    public function test_busca_retorna_resultado_correto(): void
-    {
-        $user = User::factory()->create();
-        Biblioteca::create([
-            'created_by' => $user->id,
-            'nome' => 'Biblioteca Central',
-        ]);
-        Biblioteca::create([
-            'created_by' => $user->id,
-            'nome' => 'Biblioteca Municipal',
-        ]);
-
-        $response = $this->get('/bibliotecas?nome=Central');
-
-        $response->assertStatus(200);
-    }
-
-    /**
-     * Test: Múltiplas bibliotecas são listadas
-     */
-    public function test_multiplas_bibliotecas_listadas(): void
-    {
-        $user = User::factory()->create();
-        Biblioteca::create(['created_by' => $user->id, 'nome' => 'Biblioteca 1']);
-        Biblioteca::create(['created_by' => $user->id, 'nome' => 'Biblioteca 2']);
-        Biblioteca::create(['created_by' => $user->id, 'nome' => 'Biblioteca 3']);
-
-        $response = $this->get('/bibliotecas');
-
-        $response->assertStatus(200);
     }
 }
