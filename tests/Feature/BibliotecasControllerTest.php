@@ -55,7 +55,7 @@ class BibliotecasControllerTest extends TestCase
         $response->assertSee($user->name);
     }
 
-    public function test_edit_page_para_biblioteca_existente_retorna_500_atualmente(): void
+    public function test_edit_page_para_biblioteca_existente_retorna_200(): void
     {
         $user = User::factory()->create();
         $biblioteca = Biblioteca::create([
@@ -68,21 +68,25 @@ class BibliotecasControllerTest extends TestCase
 
         $response = $this->get("/bibliotecas/edit/{$biblioteca->id}");
 
-        $response->assertStatus(500);
+        $response->assertStatus(200);
+        $response->assertViewIs('bibliotecas.edit');
+        $response->assertViewHas('biblioteca', $biblioteca);
     }
 
-    public function test_edit_page_para_biblioteca_inexistente_retorna_500(): void
+    public function test_edit_page_para_biblioteca_inexistente_redireciona_para_lista_com_erro(): void
     {
         $response = $this->get('/bibliotecas/edit/9999');
 
-        $response->assertStatus(500);
+        $response->assertRedirect(route('bibliotecas.index'));
+        $response->assertSessionHas('error', 'Biblioteca não encontrada');
     }
 
     public function test_store_cria_biblioteca_com_dados_validos(): void
     {
         $user = User::factory()->create();
 
-        $response = $this->post('/bibliotecas/create', [
+        $response = $this->withSession(['_token' => 'test-token'])->post('/bibliotecas/create', [
+            '_token' => 'test-token',
             'created_by' => $user->id,
             'nome' => 'Biblioteca Nova',
             'endereco' => 'Rua Teste, 123',
@@ -101,7 +105,8 @@ class BibliotecasControllerTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $response = $this->post('/bibliotecas/create', [
+        $response = $this->withSession(['_token' => 'test-token'])->post('/bibliotecas/create', [
+            '_token' => 'test-token',
             'created_by' => $user->id,
             'endereco' => 'Rua Teste, 123',
         ]);
@@ -112,7 +117,8 @@ class BibliotecasControllerTest extends TestCase
 
     public function test_store_retorna_erro_quando_falta_created_by(): void
     {
-        $response = $this->post('/bibliotecas/create', [
+        $response = $this->withSession(['_token' => 'test-token'])->post('/bibliotecas/create', [
+            '_token' => 'test-token',
             'nome' => 'Biblioteca',
             'endereco' => 'Rua Teste, 123',
         ]);
@@ -131,7 +137,8 @@ class BibliotecasControllerTest extends TestCase
             'email' => 'old@email.com',
         ]);
 
-        $response = $this->put("/bibliotecas/update/{$biblioteca->id}", [
+        $response = $this->withSession(['_token' => 'test-token'])->put("/bibliotecas/update/{$biblioteca->id}", [
+            '_token' => 'test-token',
             'email' => 'novo@email.com',
         ]);
 
@@ -143,7 +150,8 @@ class BibliotecasControllerTest extends TestCase
 
     public function test_update_retorna_404_para_biblioteca_inexistente(): void
     {
-        $response = $this->put('/bibliotecas/update/9999', [
+        $response = $this->withSession(['_token' => 'test-token'])->put('/bibliotecas/update/9999', [
+            '_token' => 'test-token',
             'nome' => 'Biblioteca',
         ]);
 
@@ -158,7 +166,9 @@ class BibliotecasControllerTest extends TestCase
             'nome' => 'Biblioteca a Deletar',
         ]);
 
-        $response = $this->delete("/bibliotecas/delete/{$biblioteca->id}");
+        $response = $this->withSession(['_token' => 'test-token'])->delete("/bibliotecas/delete/{$biblioteca->id}", [
+            '_token' => 'test-token',
+        ]);
 
         $response->assertRedirect(route('bibliotecas.index'));
         $this->assertDatabaseMissing('bibliotecas', ['id' => $biblioteca->id]);
@@ -166,7 +176,9 @@ class BibliotecasControllerTest extends TestCase
 
     public function test_destroy_retorna_404_para_biblioteca_inexistente(): void
     {
-        $response = $this->delete('/bibliotecas/delete/9999');
+        $response = $this->withSession(['_token' => 'test-token'])->delete('/bibliotecas/delete/9999', [
+            '_token' => 'test-token',
+        ]);
 
         $response->assertStatus(404);
     }
