@@ -40,17 +40,23 @@ jobs:
         run: php artisan test
         env:
           APP_ENV: testing
-
-      - nome: Cypress.io
-        utiliza: cypress-io/github-action@v7.4.0
-
-      - nome: End-to-end tests
-        cypress-run:
-          runs-on: ubuntu-24.04
-          steps:
-            - name: Checkout
-              uses: actions/checkout@v7
-            # Install dependencies with caching
-            # and run all Cypress tests
-            - name: Cypress run
-              uses: cypress-io/github-action@v7
+          
+      - name: Cypress run (E2E)
+        uses: cypress-io/github-action@v7
+        with:
+          # dependências do Node já foram instaladas no passo acima
+          install: false
+          # inicia o servidor Laravel antes dos testes
+          start: php artisan serve
+          # espera o servidor responder antes de rodar o Cypress
+          wait-on: 'http://localhost:8000'
+        env:
+          APP_ENV: testing
+ 
+      - name: Upload Cypress screenshots (em caso de falha)
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: cypress-screenshots
+          path: cypress/screenshots
+          if-no-files-found: ignore
