@@ -40,3 +40,17 @@ jobs:
         run: php artisan test
         env:
           APP_ENV: testing
+
+      - nome: Cypress.io
+        utiliza: cypress-io/github-action@v7.4.0
+
+      - nome: End-to-end tests
+        cypress-run:
+          runs-on: ubuntu-24.04
+          steps:
+            - name: Checkout
+              uses: actions/checkout@v7
+            # Install dependencies with caching
+            # and run all Cypress tests
+            - name: Cypress run
+              uses: cypress-io/github-action@v7
