@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [ master, main, develop ]
+  pull_request:
+    branches: [ master, main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo, pdo_sqlite, bcmath, json, curl, openssl
+          tools: composer
+
+      - name: Install dependencies
+        run: composer install --no-progress --prefer-dist --optimize-autoloader
+
+      - name: Install Node dependencies
+        run: npm install
+
+      - name: Create .env file
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Run migrations
+        run: php artisan migrate --seed
+        env:
+          APP_ENV: testing
+
+      - name: Run tests
+        run: php artisan test
+        env:
+          APP_ENV: testing
+          
+      - name: Cypress run (E2E)
+        uses: cypress-io/github-action@v7
+        with:
+          # dependências do Node já foram instaladas no passo acima
+          install: false
+          # inicia o servidor Laravel antes dos testes
+          start: php artisan serve
+          # espera o servidor responder antes de rodar o Cypress
+          wait-on: 'http://localhost:8000'
+        env:
+          APP_ENV: testing
+ 
+      - name: Upload Cypress screenshots (em caso de falha)
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: cypress-screenshots
+          path: cypress/screenshots
+          if-no-files-found: ignore
