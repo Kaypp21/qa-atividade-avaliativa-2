@@ -21,7 +21,7 @@ describe('Bibliotecas', () => {
     cy.get('#endereco').type('Rua dos Testes, 123');
     cy.get('#telefone').type('11999999999');
     cy.get('#email').type('teste@biblioteca.local');
-    cy.get('#created_by').select(1); // seleciona o primeiro responsável da lista
+    cy.get('#created_by').select(1, {force: true}); // seleciona o primeiro responsável da lista
  
     cy.contains('Criar Biblioteca').click();
  
